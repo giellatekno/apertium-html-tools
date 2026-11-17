@@ -5,7 +5,10 @@ import { Router } from 'react-router-dom';
 import userEvent from '@testing-library/user-event';
 
 import { Mode, TranslateEvent } from '..';
+import Config from '../../../../config';
+import { ConfigContext } from '../../../context';
 import Translator from '../Translator';
+import mockAxios from 'jest-mock-axios';
 
 const renderTranslator = (historyOptions?: MemoryHistoryBuildOptions, mode?: Mode) => {
   const history = createMemoryHistory(historyOptions);
@@ -175,4 +178,63 @@ it('sets target language', () => {
   userEvent.selectOptions(dropdown, 'español');
 
   expect(dropdown.value).toBe('spa');
+});
+
+describe('LLM post-editing consent', () => {
+  const renderWithLlm = () =>
+    render(
+      <ConfigContext.Provider value={{ ...Config, llmPostEditing: { model: 'Some-Model' } }}>
+        <Router history={createMemoryHistory()}>
+          <Translator />
+        </Router>
+      </ConfigContext.Provider>,
+    );
+
+  const translate = () => {
+    userEvent.type(screen.getByRole('textbox', { name: 'Input_Text-Default' }), 'hello');
+    window.dispatchEvent(new Event(TranslateEvent));
+  };
+
+  it.each([
+    ['LLM_Post_Editing_Yes-Default', 'translateLLM'],
+    ['LLM_Post_Editing_No-Default', 'translate?'],
+  ])('asks on first translation, then %s uses %s', async (button, endpoint) => {
+    renderWithLlm();
+    translate();
+
+    expect(await screen.findByText('LLM_Post_Editing_Question-Default')).toBeDefined();
+    expect(mockAxios.post).toHaveBeenCalledTimes(0);
+
+    userEvent.click(screen.getByRole('button', { name: button }));
+
+    await waitFor(() => expect(mockAxios.post).toHaveBeenCalledTimes(1));
+    expect(mockAxios.post).toHaveBeenCalledWith(
+      expect.stringMatching(endpoint === 'translateLLM' ? /translateLLM$/ : /translate$/),
+      expect.anything(),
+      expect.anything(),
+    );
+  });
+
+  it.each([
+    ['nothing saved', null],
+    ['an invalid value', '"yes"'],
+  ])('asks when %s is stored', async (_, stored) => {
+    if (stored !== null) {
+      window.localStorage.setItem('llmPostCleanup', stored);
+    }
+    renderWithLlm();
+    translate();
+
+    expect(await screen.findByText('LLM_Post_Editing_Question-Default')).toBeDefined();
+    expect(mockAxios.post).toHaveBeenCalledTimes(0);
+  });
+
+  it('does not ask again', async () => {
+    window.localStorage.setItem('llmPostCleanup', 'false');
+    renderWithLlm();
+    translate();
+
+    await waitFor(() => expect(mockAxios.post).toHaveBeenCalledTimes(1));
+    expect(screen.queryByText('LLM_Post_Editing_Question-Default')).toBeNull();
+  });
 });

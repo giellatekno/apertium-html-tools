@@ -28,6 +28,7 @@ import WebpageTranslationForm, { Path as WebpageTranslationPath } from './Webpag
 import { parentLang, toAlpha3Code } from '../../util/languages';
 import { ConfigContext } from '../../context';
 import LanguageSelector from './LanguageSelector';
+import LlmPostEditingModal from './LlmPostEditingModal';
 import TranslationOptions from './TranslationOptions';
 import { getUrlParam } from '../../util/url';
 import useLocalStorage from '../../util/useLocalStorage';
@@ -255,6 +256,15 @@ const Translator = ({ mode: initialMode }: { mode?: Mode }): React.ReactElement 
     validateValue: () => config.translationChaining,
   });
 
+  // null: not asked yet, so the first translation asks for consent
+  // A new key, so existing users (who have never seen the question) get asked
+  const [llmChoice, setLlmChoice] = useLocalStorage<boolean | null>('llmPostCleanup', null, {
+    validateValue: (value) => value === null || typeof value === 'boolean',
+  });
+  const llmPostEditing = config.llmPostEditing ? llmChoice : false;
+  const [showLlmConsent, setShowLlmConsent] = React.useState(false);
+  const askLlmChoice = React.useCallback(() => setShowLlmConsent(true), []);
+
   const [selectedPrefs, setSelectedPrefs] = useLocalStorage<Record<string, PairPrefValues>>('translationPrefs', {});
 
   const pairs = translationChaining && mode === Mode.Text ? ChainedPairs : DirectPairs;
@@ -312,7 +322,18 @@ const Translator = ({ mode: initialMode }: { mode?: Mode }): React.ReactElement 
                 {(mode === Mode.Text || !mode) && (
                   <>
                     <TextTranslationForm
-                      {...{ instantTranslation, markUnknown, setLoading, srcLang, tgtLang, pairPrefs }}
+                      {...{ markUnknown, setLoading, srcLang, tgtLang, pairPrefs, llmPostEditing }}
+                      // Never call the LLM on every pause in typing
+                      instantTranslation={instantTranslation && llmPostEditing !== true}
+                      onLlmChoiceNeeded={askLlmChoice}
+                    />
+                    <LlmPostEditingModal
+                      onChoose={(useLlm) => {
+                        setLlmChoice(useLlm);
+                        setShowLlmConsent(false);
+                      }}
+                      show={showLlmConsent}
+                      {...{ srcLang, tgtLang }}
                     />
                     <Row className="mt-2 mb-3">
                       <Col className="d-flex d-sm-block flex-wrap translation-modes" md="6" xs="12">
@@ -342,6 +363,8 @@ const Translator = ({ mode: initialMode }: { mode?: Mode }): React.ReactElement 
                             setInstantTranslation,
                             translationChaining,
                             setTranslationChaining,
+                            llmPostEditing: llmPostEditing === true,
+                            setLlmPostEditing: setLlmChoice,
                             pairPrefs,
                             setPairPrefs,
                           }}

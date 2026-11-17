@@ -20,6 +20,10 @@ export type Config = {
   defaultMode: Mode;
   enabledModes: Set<Mode>;
   translationChaining: boolean;
+  // Offer a toggle that sends text translations to APy's /translateLLM
+  // (Apertium + LLM post-editing). That endpoint is not in upstream APy.
+  // `model` is the name shown to users, e.g. 'GPT-4.1 mini'.
+  llmPostEditing?: { model: string };
 
   subtitle?: string;
   subtitleColor?: string;

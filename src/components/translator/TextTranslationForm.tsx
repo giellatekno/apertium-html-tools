@@ -34,6 +34,9 @@ export type Props = {
   tgtLang: string;
   instantTranslation: boolean;
   markUnknown: boolean;
+  // null: the user hasn't chosen yet; translating calls onLlmChoiceNeeded instead
+  llmPostEditing?: boolean | null;
+  onLlmChoiceNeeded?: () => void;
   pairPrefs: PairPrefValues;
   setLoading: (loading: boolean) => void;
 };
@@ -43,6 +46,8 @@ const TextTranslationForm = ({
   tgtLang,
   markUnknown,
   instantTranslation,
+  llmPostEditing = false,
+  onLlmChoiceNeeded,
   pairPrefs,
   setLoading,
 }: Props): React.ReactElement => {
@@ -69,6 +74,8 @@ const TextTranslationForm = ({
   }, [srcLang, tgtLang, srcText, history]);
 
   const [error, setError] = React.useState(false);
+  // Set when /translateLLM fell back to the plain Apertium translation
+  const [llmFailed, setLlmFailed] = React.useState(false);
   const translationRef = React.useRef<CancelTokenSource | null>(null);
 
   const prefs = Object.entries(pairPrefs)
@@ -80,7 +87,7 @@ const TextTranslationForm = ({
 
   const translate = React.useCallback(
     (force = false) => {
-      const translationProps: Record<string, unknown> = { srcLang, tgtLang, markUnknown, prefs };
+      const translationProps: Record<string, unknown> = { srcLang, tgtLang, markUnknown, prefs, llmPostEditing };
       const { current } = previousTranslationProps;
       previousTranslationProps.current = translationProps;
 
@@ -101,8 +108,14 @@ const TextTranslationForm = ({
       translationRef.current?.cancel();
       translationRef.current = null;
 
+      if (llmPostEditing === null) {
+        // Translates once the choice is made, since llmPostEditing changes
+        onLlmChoiceNeeded?.();
+        return;
+      }
+
       trackEvent({ category: 'translator', action: 'translate', name: `${srcLang}-${tgtLang}`, value: srcText.length });
-      const [ref, request] = apyFetch('translate', {
+      const [ref, request] = apyFetch(llmPostEditing ? 'translateLLM' : 'translate', {
         q: srcText,
         langpair: `${srcLang}|${tgtLang}`,
         markUnknown: markUnknown ? 'yes' : 'no',
@@ -114,11 +127,13 @@ const TextTranslationForm = ({
       void (async () => {
         try {
           const response = (await request).data as {
-            responseData: { translatedText: string };
+            responseData: { translatedText: string; llmStatus?: string };
             responseDetails: unknown;
             responseStatus: number;
           };
           setTgtText(response.responseData.translatedText);
+          const { llmStatus } = response.responseData;
+          setLlmFailed(!!llmPostEditing && llmStatus != null && llmStatus !== 'ok');
           setError(false);
           setLoading(false);
         } catch (error) {
@@ -130,7 +145,18 @@ const TextTranslationForm = ({
         }
       })();
     },
-    [apyFetch, markUnknown, prefs, setLoading, srcLang, srcText, tgtLang, trackEvent],
+    [
+      apyFetch,
+      llmPostEditing,
+      markUnknown,
+      onLlmChoiceNeeded,
+      prefs,
+      setLoading,
+      srcLang,
+      srcText,
+      tgtLang,
+      trackEvent,
+    ],
   );
 
   const translationTimer = React.useRef<number | null>(null);
@@ -282,6 +308,7 @@ const TextTranslationForm = ({
         >
           <FontAwesomeIcon fixedWidth icon={faCopy} />
         </Button>
+        {llmFailed && !error && <Form.Text className="text-muted mb-2">{t('LLM_Post_Editing_Failed')}</Form.Text>}
       </Col>
     </Row>
   );

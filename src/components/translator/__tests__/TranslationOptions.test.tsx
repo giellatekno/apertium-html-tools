@@ -2,9 +2,12 @@ import * as React from 'react';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
+import Config from '../../../../config';
+import { ConfigContext } from '../../../context';
+
 import TranslationOptions, { Props } from '../TranslationOptions';
 
-const renderTranslationOptions = (props_: Partial<Props> = {}) => {
+const renderTranslationOptions = (props_: Partial<Props> = {}, config: Partial<typeof Config> = {}) => {
   const props = {
     markUnknown: false,
     setMarkUnknown: jest.fn(),
@@ -12,6 +15,8 @@ const renderTranslationOptions = (props_: Partial<Props> = {}) => {
     setInstantTranslation: jest.fn(),
     translationChaining: false,
     setTranslationChaining: jest.fn(),
+    llmPostEditing: false,
+    setLlmPostEditing: jest.fn(),
     srcLang: 'eng',
     tgtLang: 'spa',
     pairPrefs: {},
@@ -19,7 +24,11 @@ const renderTranslationOptions = (props_: Partial<Props> = {}) => {
     ...props_,
   };
 
-  render(<TranslationOptions {...props} />);
+  render(
+    <ConfigContext.Provider value={{ ...Config, ...config }}>
+      <TranslationOptions {...props} />
+    </ConfigContext.Provider>,
+  );
 
   return props;
 };
@@ -72,6 +81,48 @@ describe('translation chaining', () => {
     userEvent.click(screen.getByRole('checkbox', { name }));
 
     expect(setTranslationChaining).toHaveBeenCalledWith(!translationChaining);
+  });
+});
+
+describe('LLM post-editing', () => {
+  // The label also contains the "what is this?" link
+  const name = /^LLM_Post_Editing-Default/;
+  const config = { llmPostEditing: { model: 'Some-Model' } };
+
+  it('is hidden unless enabled in config', () => {
+    renderTranslationOptions();
+    expect(screen.queryByRole('checkbox', { name })).toBeNull();
+  });
+
+  it.each([false, true])('renders %s', (llmPostEditing) => {
+    renderTranslationOptions({ llmPostEditing }, config);
+    expect(screen.getByRole('checkbox', { name, checked: llmPostEditing })).toBeDefined();
+  });
+
+  it.each([false, true])('toggles from %s', (llmPostEditing) => {
+    const { setLlmPostEditing } = renderTranslationOptions({ llmPostEditing }, config);
+
+    userEvent.click(screen.getByRole('checkbox', { name }));
+
+    expect(setLlmPostEditing).toHaveBeenCalledWith(!llmPostEditing);
+  });
+
+  it('turns off and disables instant translation', () => {
+    renderTranslationOptions({ llmPostEditing: true, instantTranslation: true }, config);
+
+    const instant = screen.getByRole('checkbox', { name: 'Instant_Translation-Default' }) as HTMLInputElement;
+    expect(instant.checked).toBe(false);
+    expect(instant.disabled).toBe(true);
+  });
+
+  it('opens an explanation without toggling', async () => {
+    const { setLlmPostEditing } = renderTranslationOptions({}, config);
+
+    userEvent.click(screen.getByRole('button', { name: 'LLM_Post_Editing_What-Default' }));
+
+    expect(await screen.findByRole('dialog')).toBeDefined();
+    expect(screen.getByText('LLM_Post_Editing_Info-Default')).toBeDefined();
+    expect(setLlmPostEditing).not.toHaveBeenCalled();
   });
 });
 

@@ -1,4 +1,5 @@
 import * as React from 'react';
+import Button from 'react-bootstrap/Button';
 import Col from 'react-bootstrap/Col';
 import DropdownButton from 'react-bootstrap/DropdownButton';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
@@ -8,6 +9,7 @@ import { faCog } from '@fortawesome/free-solid-svg-icons';
 
 import { ConfigContext, LocaleContext } from '../../context';
 import { PairPrefValues, getPairPrefs } from '.';
+import LlmPostEditingModal from './LlmPostEditingModal';
 import { useLocalization } from '../../util/localization';
 
 export type Props = {
@@ -17,6 +19,8 @@ export type Props = {
   setInstantTranslation: React.Dispatch<React.SetStateAction<boolean>>;
   translationChaining: boolean;
   setTranslationChaining: React.Dispatch<React.SetStateAction<boolean>>;
+  llmPostEditing: boolean;
+  setLlmPostEditing: (llmPostEditing: boolean) => void;
   srcLang: string;
   tgtLang: string;
   pairPrefs: PairPrefValues;
@@ -30,6 +34,8 @@ const TranslationOptions = ({
   setInstantTranslation,
   translationChaining,
   setTranslationChaining,
+  llmPostEditing,
+  setLlmPostEditing,
   srcLang,
   tgtLang,
   pairPrefs,
@@ -41,6 +47,7 @@ const TranslationOptions = ({
 
   const prefs = React.useMemo(() => getPairPrefs(locale, srcLang, tgtLang), [locale, srcLang, tgtLang]);
   const [showPrefDropdown, setShowPrefDropdown] = React.useState(false);
+  const [showLlmInfo, setShowLlmInfo] = React.useState(false);
 
   return (
     <>
@@ -99,8 +106,9 @@ const TranslationOptions = ({
         onChange={({ currentTarget }) => setMarkUnknown(currentTarget.checked)}
       />
       <Form.Check
-        checked={instantTranslation}
+        checked={instantTranslation && !llmPostEditing}
         custom
+        disabled={llmPostEditing}
         id="instant-translation"
         label={t('Instant_Translation')}
         onChange={({ currentTarget }) => setInstantTranslation(currentTarget.checked)}
@@ -113,6 +121,33 @@ const TranslationOptions = ({
           label={<span dangerouslySetInnerHTML={{ __html: t('Multi_Step_Translation') }} />}
           onChange={({ currentTarget }) => setTranslationChaining(currentTarget.checked)}
         />
+      )}
+      {config.llmPostEditing && (
+        <Form.Check
+          checked={llmPostEditing}
+          custom
+          id="llm-post-editing"
+          label={
+            <>
+              {t('LLM_Post_Editing')} (
+              <Button
+                className="p-0 align-baseline"
+                onClick={(event) => {
+                  event.preventDefault();
+                  setShowLlmInfo(true);
+                }}
+                variant="link"
+              >
+                {t('LLM_Post_Editing_What')}
+              </Button>
+              )
+            </>
+          }
+          onChange={({ currentTarget }) => setLlmPostEditing(currentTarget.checked)}
+        />
+      )}
+      {config.llmPostEditing && (
+        <LlmPostEditingModal onHide={() => setShowLlmInfo(false)} show={showLlmInfo} {...{ srcLang, tgtLang }} />
       )}
     </>
   );

@@ -215,6 +215,66 @@ describe('translation', () => {
     await waitFor(() => expect(mockAxios.queue()).toHaveLength(0));
   });
 
+  describe('with LLM post-editing', () => {
+    const failedNotice = 'LLM_Post_Editing_Failed-Default';
+
+    it('uses /translateLLM', async () => {
+      renderTextTranslationForm({ llmPostEditing: true });
+
+      type(input);
+      translate();
+
+      mockAxios.mockResponse({ data: { responseData: { translatedText: output, llmStatus: 'ok' } } });
+      await waitFor(() =>
+        expect(mockAxios.post).toHaveBeenCalledWith(
+          expect.stringContaining('translateLLM'),
+          expect.anything(),
+          expect.anything(),
+        ),
+      );
+
+      expect(getOutputTextbox().value).toBe(output);
+      expect(screen.queryByText(failedNotice)).toBeNull();
+    });
+
+    it('says when it fell back to Apertium', async () => {
+      renderTextTranslationForm({ llmPostEditing: true });
+
+      type(input);
+      translate();
+
+      mockAxios.mockResponse({ data: { responseData: { translatedText: output, llmStatus: 'unavailable' } } });
+
+      expect(await screen.findByText(failedNotice)).toBeDefined();
+      expect(getOutputTextbox().value).toBe(output);
+    });
+
+    it('asks for a choice instead of translating when undecided', () => {
+      const onLlmChoiceNeeded = jest.fn();
+      renderTextTranslationForm({ llmPostEditing: null, onLlmChoiceNeeded });
+
+      type(input);
+      translate();
+
+      expect(onLlmChoiceNeeded).toHaveBeenCalled();
+      expect(mockAxios.post).toHaveBeenCalledTimes(0);
+    });
+
+    it('is not used when off', async () => {
+      renderTextTranslationForm();
+
+      type(input);
+      translate();
+
+      await waitFor(() => expect(mockAxios.post).toHaveBeenCalledTimes(1));
+      expect(mockAxios.post).not.toHaveBeenCalledWith(
+        expect.stringContaining('translateLLM'),
+        expect.anything(),
+        expect.anything(),
+      );
+    });
+  });
+
   it('shows errors as not available', async () => {
     renderTextTranslationForm();
 
