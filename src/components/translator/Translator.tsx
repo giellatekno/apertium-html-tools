@@ -20,6 +20,7 @@ import {
   TgtLangs,
   TranslateEvent,
   isPair,
+  llmPostEditingOffered,
   pairUrlParam,
 } from '.';
 import DocTranslationForm, { Path as DocTranslationPath } from './DocTranslationForm';
@@ -261,7 +262,9 @@ const Translator = ({ mode: initialMode }: { mode?: Mode }): React.ReactElement 
   const [llmChoice, setLlmChoice] = useLocalStorage<boolean | null>('llmPostCleanup', null, {
     validateValue: (value) => value === null || typeof value === 'boolean',
   });
-  const llmPostEditing = config.llmPostEditing ? llmChoice : false;
+  // Only for the pairs config.llmPostEditing offers it for
+  const llmPostEditingFor = (srcLang: string, tgtLang: string) =>
+    llmPostEditingOffered(config.llmPostEditing, srcLang, tgtLang) ? llmChoice : false;
   const [showLlmConsent, setShowLlmConsent] = React.useState(false);
   const askLlmChoice = React.useCallback(() => setShowLlmConsent(true), []);
 
@@ -322,9 +325,10 @@ const Translator = ({ mode: initialMode }: { mode?: Mode }): React.ReactElement 
                 {(mode === Mode.Text || !mode) && (
                   <>
                     <TextTranslationForm
-                      {...{ markUnknown, setLoading, srcLang, tgtLang, pairPrefs, llmPostEditing }}
+                      {...{ markUnknown, setLoading, srcLang, tgtLang, pairPrefs }}
                       // Never call the LLM on every pause in typing
-                      instantTranslation={instantTranslation && llmPostEditing !== true}
+                      instantTranslation={instantTranslation && llmPostEditingFor(srcLang, tgtLang) !== true}
+                      llmPostEditing={llmPostEditingFor(srcLang, tgtLang)}
                       onLlmChoiceNeeded={askLlmChoice}
                     />
                     <LlmPostEditingModal
@@ -363,7 +367,7 @@ const Translator = ({ mode: initialMode }: { mode?: Mode }): React.ReactElement 
                             setInstantTranslation,
                             translationChaining,
                             setTranslationChaining,
-                            llmPostEditing: llmPostEditing === true,
+                            llmPostEditing: llmPostEditingFor(srcLang, tgtLang) === true,
                             setLlmPostEditing: setLlmChoice,
                             pairPrefs,
                             setPairPrefs,

@@ -94,6 +94,14 @@ describe('LLM post-editing', () => {
     expect(screen.queryByRole('checkbox', { name })).toBeNull();
   });
 
+  it.each([
+    ['listed', ['eng-spa'], true],
+    ['not listed', ['spa-eng'], false],
+  ])('is offered for pairs only when %s in config', (_, pairs, offered) => {
+    renderTranslationOptions({}, { llmPostEditing: { model: 'Some-Model', pairs } });
+    expect(screen.queryByRole('checkbox', { name }) !== null).toBe(offered);
+  });
+
   it.each([false, true])('renders %s', (llmPostEditing) => {
     renderTranslationOptions({ llmPostEditing }, config);
     expect(screen.getByRole('checkbox', { name, checked: llmPostEditing })).toBeDefined();

@@ -181,9 +181,9 @@ it('sets target language', () => {
 });
 
 describe('LLM post-editing consent', () => {
-  const renderWithLlm = () =>
+  const renderWithLlm = (pairs?: Array<string>) =>
     render(
-      <ConfigContext.Provider value={{ ...Config, llmPostEditing: { model: 'Some-Model' } }}>
+      <ConfigContext.Provider value={{ ...Config, llmPostEditing: { model: 'Some-Model', pairs } }}>
         <Router history={createMemoryHistory()}>
           <Translator />
         </Router>
@@ -227,6 +227,20 @@ describe('LLM post-editing consent', () => {
 
     expect(await screen.findByText('LLM_Post_Editing_Question-Default')).toBeDefined();
     expect(mockAxios.post).toHaveBeenCalledTimes(0);
+  });
+
+  it('neither asks nor uses the LLM for pairs not in config', async () => {
+    window.localStorage.setItem('llmPostCleanup', 'true');
+    renderWithLlm([]);
+    translate();
+
+    await waitFor(() => expect(mockAxios.post).toHaveBeenCalledTimes(1));
+    expect(mockAxios.post).toHaveBeenCalledWith(
+      expect.stringMatching(/translate$/),
+      expect.anything(),
+      expect.anything(),
+    );
+    expect(screen.queryByText('LLM_Post_Editing_Question-Default')).toBeNull();
   });
 
   it('does not ask again', async () => {

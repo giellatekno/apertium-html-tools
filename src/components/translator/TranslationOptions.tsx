@@ -8,7 +8,7 @@ import Row from 'react-bootstrap/Row';
 import { faCog } from '@fortawesome/free-solid-svg-icons';
 
 import { ConfigContext, LocaleContext } from '../../context';
-import { PairPrefValues, getPairPrefs } from '.';
+import { PairPrefValues, getPairPrefs, llmPostEditingOffered } from '.';
 import LlmPostEditingModal from './LlmPostEditingModal';
 import { useLocalization } from '../../util/localization';
 
@@ -48,6 +48,7 @@ const TranslationOptions = ({
   const prefs = React.useMemo(() => getPairPrefs(locale, srcLang, tgtLang), [locale, srcLang, tgtLang]);
   const [showPrefDropdown, setShowPrefDropdown] = React.useState(false);
   const [showLlmInfo, setShowLlmInfo] = React.useState(false);
+  const llmOffered = llmPostEditingOffered(config.llmPostEditing, srcLang, tgtLang);
 
   return (
     <>
@@ -122,7 +123,7 @@ const TranslationOptions = ({
           onChange={({ currentTarget }) => setTranslationChaining(currentTarget.checked)}
         />
       )}
-      {config.llmPostEditing && (
+      {llmOffered && (
         <Form.Check
           checked={llmPostEditing}
           custom
@@ -146,7 +147,7 @@ const TranslationOptions = ({
           onChange={({ currentTarget }) => setLlmPostEditing(currentTarget.checked)}
         />
       )}
-      {config.llmPostEditing && (
+      {llmOffered && (
         <LlmPostEditingModal onHide={() => setShowLlmInfo(false)} show={showLlmInfo} {...{ srcLang, tgtLang }} />
       )}
     </>

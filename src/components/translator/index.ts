@@ -1,3 +1,4 @@
+import { Config } from '../../types';
 import { parentLang } from '../../util/languages';
 
 export type Pairs = Readonly<Record<string, Set<string>>>;
@@ -55,6 +56,13 @@ TgtLangs.forEach((lang) => {
 });
 
 export const isPair = (pairs: Pairs, src: string, tgt: string): boolean => pairs[src] && pairs[src].has(tgt);
+
+// Whether to offer post-editing with an LLM (config.llmPostEditing) for this pair
+export const llmPostEditingOffered = (
+  llmPostEditing: Config['llmPostEditing'],
+  srcLang: string,
+  tgtLang: string,
+): boolean => !!llmPostEditing && (!llmPostEditing.pairs || llmPostEditing.pairs.includes(`${srcLang}-${tgtLang}`));
 
 // eslint-disable-next-line
 const pairPrefs = (window as any).PAIR_PREFS as Record<string, Record<string, Record<string, string>>>;
