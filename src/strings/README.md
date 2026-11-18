@@ -40,7 +40,7 @@ After editing localizations, please run `make` and commit its changes.
 | uig  | 66% | 77.01% |
 | kaz  | 66% | 76.30% |
 | heb  | 66% | 67.69% |
-| sme  | 55% | 14.53% |
+| sme  | 48% | 12.30% |
 | por  | 48% | 12.18% |
 | eus  | 44% | 12.97% |
 | ava  | 42% | 12.33% |

@@ -9,7 +9,7 @@
             "se",
             "sme"
         ],
-        "completion": " 55%  14.53%",
+        "completion": " 48%  12.30%",
         "missing": [
             "About_Apertium",
             "Apertium_Documentation",
@@ -24,6 +24,14 @@
             "Install_Apertium",
             "Install_Apertium_Para",
             "Instant_Translation",
+            "LLM_Post_Editing",
+            "LLM_Post_Editing_Failed",
+            "LLM_Post_Editing_Info",
+            "LLM_Post_Editing_No",
+            "LLM_Post_Editing_Privacy",
+            "LLM_Post_Editing_Question",
+            "LLM_Post_Editing_What",
+            "LLM_Post_Editing_Yes",
             "Mark_Unknown_Words",
             "More_Languages",
             "Morphological_Analysis_Help",
